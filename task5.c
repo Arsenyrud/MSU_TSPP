@@ -3,21 +3,8 @@
 #include <omp.h>
 #include <time.h>
 
-
-void print_usage(char *prog_name) {
-    printf("Usage: %s a b x p N P\n", prog_name);
-    printf("Where:\n");
-    printf("  a - left boundary (integer)\n");
-    printf("  b - right boundary (integer), must satisfy a < x < b\n");
-    printf("  x - starting point (integer)\n");
-    printf("  p - probability to move right (float between 0 and 1)\n");
-    printf("  N - number of particles (positive integer)\n");
-    printf("  P - number of threads (positive integer)\n");
-}
-
 int main(int argc, char *argv[]) {
     if (argc != 7) {
-        print_usage(argv[0]);
         return EXIT_FAILURE;
     }
 
@@ -46,14 +33,16 @@ int main(int argc, char *argv[]) {
     long long count_b = 0;
     long long total_steps = 0;
 
+    time_t base_time = time(NULL);
+
     double loop_start = omp_get_wtime();
 
-    #pragma omp parallel
+    #pragma omp parallel shared(base_time) reduction(+: count_b, total_steps)
     {
         int thread_num = omp_get_thread_num();
-        unsigned int seed = (unsigned int)(time(NULL)) + thread_num;
+        unsigned int seed = (unsigned int)(base_time) + thread_num;
 
-        #pragma omp for reduction(+: count_b, total_steps)
+        #pragma omp for
         for (long long i = 0; i < N; i++) {
             int pos = x;
             long long steps = 0;
@@ -78,7 +67,6 @@ int main(int argc, char *argv[]) {
     double loop_time = loop_end - loop_start;
 
     double probability_b = ((double)count_b) / N;
-
     double average_steps = ((double)total_steps) / N;
 
     printf("Probability of reaching %d: %.6f\n", b, probability_b);
