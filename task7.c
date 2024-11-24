@@ -60,21 +60,23 @@ int main(int argc, char *argv[]) {
     start_time = MPI_Wtime();
 
     for (iter = 0; iter < MAX_ITER; iter++) {
-       if (rank > 0) {
-            MPI_Send(f_old[1], N, MPI_DOUBLE, rank - 1, 0, MPI_COMM_WORLD);
-            MPI_Recv(f_old[0], N, MPI_DOUBLE, rank - 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        } else {
-            for (j = 0; j < N; j++) {
-                f_old[0][j] = 0.0;
+        if (rank % 2 == 0) {
+            if (rank > 0) {
+                MPI_Send(f_old[1], N, MPI_DOUBLE, rank - 1, 0, MPI_COMM_WORLD);
+                MPI_Recv(f_old[0], N, MPI_DOUBLE, rank - 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             }
-        }
-
-        if (rank < size - 1) {
-            MPI_Send(f_old[n_local], N, MPI_DOUBLE, rank + 1, 0, MPI_COMM_WORLD);
-            MPI_Recv(f_old[n_local + 1], N, MPI_DOUBLE, rank + 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            if (rank < size - 1) {
+                MPI_Send(f_old[n_local], N, MPI_DOUBLE, rank + 1, 0, MPI_COMM_WORLD);
+                MPI_Recv(f_old[n_local + 1], N, MPI_DOUBLE, rank + 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            }
         } else {
-            for (j = 0; j < N; j++) {
-                f_old[n_local + 1][j] = 0.0;
+            if (rank < size - 1) {
+                MPI_Recv(f_old[n_local + 1], N, MPI_DOUBLE, rank + 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                MPI_Send(f_old[n_local], N, MPI_DOUBLE, rank + 1, 0, MPI_COMM_WORLD);
+            }
+            if (rank > 0) {
+                MPI_Recv(f_old[0], N, MPI_DOUBLE, rank - 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                MPI_Send(f_old[1], N, MPI_DOUBLE, rank - 1, 0, MPI_COMM_WORLD);
             }
         }
 
@@ -101,6 +103,7 @@ int main(int argc, char *argv[]) {
         if (iter % 100 == 0 && rank == 0) {
             printf("Итерация %d, Макс разница: %f\n", iter, diff);
         }
+
     }
 
     MPI_Barrier(MPI_COMM_WORLD); 
@@ -110,7 +113,6 @@ int main(int argc, char *argv[]) {
         printf("Максимальная разница после %d итераций: %f\n", MAX_ITER, diff);
         printf("Время выполнения: %f секунд\n", end_time - start_time);
     }
-
 
     for (i = 0; i < n_local + 2; i++) {
         free(f_old[i]);
